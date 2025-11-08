@@ -1,61 +1,51 @@
 package main
 
 import (
-	"errors"
-	"os"
+	"log"
 
-	"github.com/joho/godotenv"
-	"gopkg.in/yaml.v3"
+	"github.com/uiansol/zentube/internal/config"
+	"github.com/uiansol/zentube/internal/youtube"
 )
 
-type Config struct {
-	Youtube struct {
-		ApiKey     string `yaml:"api_key"`
-		MaxResults int    `yaml:"max_results"`
-	} `yaml:"youtube"`
-}
-
-func loadEnv() error {
-	if err := godotenv.Load(); err != nil {
-		return errors.New("error loading .env file")
-	}
-	return nil
-}
-
-func loadConfig(file string) (*Config, error) {
-	data, err := os.ReadFile(file)
-	if err != nil {
-		return nil, err
-	}
-
-	var config Config
-	if err := yaml.Unmarshal(data, &config); err != nil {
-		return nil, err
-	}
-
-	return &config, nil
-}
-
-func injectEnvVariables(config *Config) error {
-	apiKey := os.Getenv("YOUTUBE_API_KEY")
-	if apiKey == "" {
-		panic("YOUTUBE_API_KEY environment variable not set")
-	}
-	config.Youtube.ApiKey = apiKey
-	return nil
-}
-
 func main() {
-	if err := loadEnv(); err != nil {
+	if err := config.LoadEnv(); err != nil {
 		panic(err)
 	}
 
-	config, err := loadConfig("configs/config.yaml")
+	cfg, err := config.LoadConfig("configs/config.yaml")
 	if err != nil {
 		panic(err)
 	}
 
-	if err := injectEnvVariables(config); err != nil {
+	if err := config.InjectEnvVariables(cfg); err != nil {
 		panic(err)
+	}
+
+	yt, err := youtube.NewService(cfg.YouTube)
+	if err != nil {
+		log.Fatalf("youtube service: %v", err)
+	}
+
+	call := yt.Search.List([]string{"id", "snippet"}).
+		Q("golang tutorial").
+		Type("video").
+		MaxResults(cfg.YouTube.MaxResults)
+
+	resp, err := call.Do()
+	if err != nil {
+		log.Fatalf("search: %v", err)
+	}
+
+	for _, item := range resp.Items {
+		if item.Id.VideoId != "" {
+			link := "https://www.youtube.com/watch?v=" + item.Id.VideoId
+			log.Printf("%s – %s", item.Snippet.Title, link)
+		}
+	}
+
+	// Print resp.Items[0] structure with all fields for debugging
+	if len(resp.Items) > 0 {
+		item := resp.Items[0]
+		log.Printf("First item: %+v", item)
 	}
 }
