@@ -1,51 +1,59 @@
 package main
 
 import (
+	"fmt"
 	"log"
+	"os"
 
+	"github.com/uiansol/zentube/internal/adapters/youtube"
 	"github.com/uiansol/zentube/internal/config"
-	"github.com/uiansol/zentube/internal/youtube"
+	"github.com/uiansol/zentube/internal/usecases"
 )
 
 func main() {
+	if err := run(); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+}
+
+func run() error {
+	// Load environment variables
 	if err := config.LoadEnv(); err != nil {
-		panic(err)
+		return fmt.Errorf("failed to load environment: %w", err)
 	}
 
+	// Load configuration
 	cfg, err := config.LoadConfig("configs/config.yaml")
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("failed to load config: %w", err)
 	}
 
+	// Inject environment variables into config
 	if err := config.InjectEnvVariables(cfg); err != nil {
-		panic(err)
+		return fmt.Errorf("failed to inject env variables: %w", err)
 	}
 
-	yt, err := youtube.NewService(cfg.YouTube)
+	// Initialize YouTube client
+	ytClient, err := youtube.NewYouTubeClient(cfg.YouTube.APIKey)
 	if err != nil {
-		log.Fatalf("youtube service: %v", err)
+		return fmt.Errorf("failed to create youtube client: %w", err)
 	}
 
-	call := yt.Search.List([]string{"id", "snippet"}).
-		Q("golang tutorial").
-		Type("video").
-		MaxResults(cfg.YouTube.MaxResults)
+	// Initialize use cases
+	searchVideos := usecases.NewSearchVideos(ytClient)
 
-	resp, err := call.Do()
+	// Example search
+	videos, err := searchVideos.Execute("golang tutorial", cfg.YouTube.MaxResults)
 	if err != nil {
-		log.Fatalf("search: %v", err)
+		return fmt.Errorf("failed to search videos: %w", err)
 	}
 
-	for _, item := range resp.Items {
-		if item.Id.VideoId != "" {
-			link := "https://www.youtube.com/watch?v=" + item.Id.VideoId
-			log.Printf("%s – %s", item.Snippet.Title, link)
-		}
+	// Display results
+	for _, video := range videos {
+		link := "https://www.youtube.com/watch?v=" + video.ID
+		log.Printf("%s – %s", video.Title, link)
 	}
 
-	// Print resp.Items[0] structure with all fields for debugging
-	if len(resp.Items) > 0 {
-		item := resp.Items[0]
-		log.Printf("First item: %+v", item)
-	}
+	return nil
 }
