@@ -1,0 +1,15 @@
+package pages
+
+import (
+	"github.com/uiansol/zentube/internal/entities"
+	"github.com/uiansol/zentube/web/templates/layouts"
+	"github.com/uiansol/zentube/web/templates/components"
+)
+
+templ HomePage(query string, videos []entities.Video) {
+	@layouts.Layout("zentube – YouTube Search") {
+		<h1 style="margin-bottom: 1rem;">zentube</h1>
+		@components.SearchForm(query)
+		@components.SearchResults(videos)
+	}
+}

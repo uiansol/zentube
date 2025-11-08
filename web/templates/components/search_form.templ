@@ -1,0 +1,8 @@
+package components
+
+templ SearchForm(query string) {
+	<form hx-post="/search" hx-target="#results" hx-swap="outerHTML">
+		<input type="text" name="q" placeholder="Search YouTube..." value={ query } required/>
+		<button type="submit" class="search-btn">Search</button>
+	</form>
+}

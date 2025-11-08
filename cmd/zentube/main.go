@@ -1,13 +1,23 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
+	"os/signal"
+	"strconv"
+	"syscall"
+	"time"
 
+	"github.com/gin-gonic/gin"
+	"github.com/uiansol/zentube/internal/adapters/http/handlers"
+	"github.com/uiansol/zentube/internal/adapters/http/routes"
 	"github.com/uiansol/zentube/internal/adapters/youtube"
 	"github.com/uiansol/zentube/internal/config"
 	"github.com/uiansol/zentube/internal/usecases"
+	"github.com/uiansol/zentube/web/templates/pages"
 )
 
 func main() {
@@ -42,18 +52,50 @@ func run() error {
 
 	// Initialize use cases
 	searchVideos := usecases.NewSearchVideos(ytClient)
+	ytHandler := handlers.NewYouTubeHandler(searchVideos, cfg.YouTube.MaxResults)
 
-	// Example search
-	videos, err := searchVideos.Execute("golang tutorial", cfg.YouTube.MaxResults)
-	if err != nil {
-		return fmt.Errorf("failed to search videos: %w", err)
+	// Setup Gin router
+	r := gin.Default()
+	routes.RegisterRoutes(r, ytHandler)
+
+	// Ensure templates compile (helps catch errors early)
+	_ = pages.HomePage("", nil)
+
+	// Determine port
+	port := cfg.App.Port
+	if port == 0 {
+		port = 8080
 	}
 
-	// Display results
-	for _, video := range videos {
-		link := "https://www.youtube.com/watch?v=" + video.ID
-		log.Printf("%s – %s", video.Title, link)
+	// Create HTTP server
+	srv := &http.Server{
+		Addr:    ":" + strconv.Itoa(port),
+		Handler: r,
 	}
 
+	// Start server in a goroutine
+	go func() {
+		log.Printf("🚀 zentube running on http://localhost:%d", port)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Server failed to start: %v", err)
+		}
+	}()
+
+	// Wait for interrupt signal for graceful shutdown
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	log.Println("🛑 Shutting down server...")
+
+	// Give active connections 5 seconds to complete
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := srv.Shutdown(ctx); err != nil {
+		return fmt.Errorf("server forced to shutdown: %w", err)
+	}
+
+	log.Println("✅ Server exited gracefully")
 	return nil
 }

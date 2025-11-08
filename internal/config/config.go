@@ -8,7 +8,13 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Public, tiny struct that *only* contains what YouTube client needs
+// Public, tiny struct that contains app configs
+type App struct {
+	Name string `yaml:"name"`
+	Port int    `yaml:"port"`
+}
+
+// Public, tiny struct that contains YouTube client configs
 type YouTube struct {
 	APIKey     string `yaml:"api_key"`
 	MaxResults int64  `yaml:"max_results"`
@@ -16,6 +22,7 @@ type YouTube struct {
 
 // Full app config
 type Config struct {
+	App     App     `yaml:"app"`
 	YouTube YouTube `yaml:"youtube"`
 }
 

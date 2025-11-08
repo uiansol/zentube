@@ -1,3 +1,7 @@
+app:
+  name: zentube
+  port: 8080
+  
 youtube:
   api_key: ${YOUTUBE_API_KEY}
   max_results: 10
