@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/uiansol/zentube/internal/adapters/http/middleware"
 	"github.com/uiansol/zentube/internal/usecases"
 	"github.com/uiansol/zentube/web/templates/components"
 	"github.com/uiansol/zentube/web/templates/pages"
@@ -36,7 +37,7 @@ func (h *YouTubeHandler) Search(c *gin.Context) {
 	}
 
 	// Check if it's an HTMX request - return only results fragment
-	if c.GetHeader("HX-Request") == "true" {
+	if middleware.IsHTMXRequest(c) {
 		components.SearchResults(videos).Render(c.Request.Context(), c.Writer)
 	} else {
 		// Regular request - return full page
