@@ -1,47 +1,83 @@
 package usecases
 
 import (
+	"errors"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/uiansol/zentube/internal/entities"
 )
 
 // MockYouTubeClient for testing
 type MockYouTubeClient struct {
-	SearchFunc func(query string, maxResults int64) ([]entities.Video, error)
+	mock.Mock
 }
 
 func (m *MockYouTubeClient) Search(query string, maxResults int64) ([]entities.Video, error) {
-	if m.SearchFunc != nil {
-		return m.SearchFunc(query, maxResults)
+	args := m.Called(query, maxResults)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
 	}
-	return nil, nil
+	return args.Get(0).([]entities.Video), args.Error(1)
 }
 
-func TestSearchVideos_Execute(t *testing.T) {
-	mockClient := &MockYouTubeClient{
-		SearchFunc: func(query string, maxResults int64) ([]entities.Video, error) {
-			return []entities.Video{
-				{
-					ID:    "test123",
-					Title: "Test Video",
-				},
-			}, nil
+func TestSearchVideos_Execute_Success(t *testing.T) {
+	// Arrange
+	mockClient := new(MockYouTubeClient)
+	expectedVideos := []entities.Video{
+		{
+			ID:    "test123",
+			Title: "Test Video",
 		},
 	}
 
+	mockClient.On("Search", "golang", int64(10)).Return(expectedVideos, nil)
+
 	uc := NewSearchVideos(mockClient)
+
+	// Act
 	videos, err := uc.Execute("golang", 10)
 
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
+	// Assert
+	assert.NoError(t, err)
+	assert.Len(t, videos, 1)
+	assert.Equal(t, "test123", videos[0].ID)
+	assert.Equal(t, "Test Video", videos[0].Title)
+	mockClient.AssertExpectations(t)
+}
 
-	if len(videos) != 1 {
-		t.Fatalf("expected 1 video, got %d", len(videos))
-	}
+func TestSearchVideos_Execute_Error(t *testing.T) {
+	// Arrange
+	mockClient := new(MockYouTubeClient)
+	expectedError := errors.New("API error")
 
-	if videos[0].ID != "test123" {
-		t.Errorf("expected video ID 'test123', got '%s'", videos[0].ID)
-	}
+	mockClient.On("Search", "golang", int64(10)).Return(nil, expectedError)
+
+	uc := NewSearchVideos(mockClient)
+
+	// Act
+	videos, err := uc.Execute("golang", 10)
+
+	// Assert
+	assert.Error(t, err)
+	assert.Nil(t, videos)
+	assert.Equal(t, expectedError, err)
+	mockClient.AssertExpectations(t)
+}
+
+func TestSearchVideos_Execute_EmptyQuery(t *testing.T) {
+	// Arrange
+	mockClient := new(MockYouTubeClient)
+	mockClient.On("Search", "", int64(10)).Return([]entities.Video{}, nil)
+
+	uc := NewSearchVideos(mockClient)
+
+	// Act
+	videos, err := uc.Execute("", 10)
+
+	// Assert
+	assert.NoError(t, err)
+	assert.Empty(t, videos)
+	mockClient.AssertExpectations(t)
 }
