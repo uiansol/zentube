@@ -1,53 +1,111 @@
-# zentube
+# ZenTube
 
-A minimalist YouTube search interface built with Go, HTMX, and Templ. Designed to reduce distractions while searching for videos.
+A modern YouTube search interface demonstrating clean architecture patterns with Go, HTMX, and Templ. Built as a **portfolio project** and **reference scaffolding** for developers learning this stack.
 
-## Features
+## 🎯 Project Goals
 
-- 🔍 Clean YouTube search interface
-- ⚡ Fast HTMX-powered interactions (no page reloads)
-- 🎨 Server-side rendered with Templ
-- 🏗️ Clean architecture (Ports & Adapters pattern)
-- 🔥 Hot reload development with Air
+This project serves as:
 
-## Tech Stack
+1. **Portfolio Piece**: Demonstrating proficiency with modern Go web development
+2. **Reference Architecture**: Clean, production-ready scaffolding for Go + HTMX + Templ projects
+3. **Learning Resource**: Companion codebase for an upcoming technical article explaining these architectural patterns
 
-- **Backend**: Go + Gin
-- **Frontend**: HTMX + Templ
-- **API**: YouTube Data API v3
-- **Architecture**: Clean Architecture (Hexagonal)
+> **Note**: This is a work-in-progress. Future additions will include database integration, Docker setup, and additional features.
 
-## Project Structure
+## ✨ Features
+
+- 🔍 Clean, distraction-free YouTube search interface
+- ⚡ HTMX-powered SPA-like experience without JavaScript frameworks
+- 🎨 Server-side rendering with type-safe Templ templates
+- 🏗️ **Clean Architecture** (Hexagonal/Ports & Adapters pattern)
+- 🧪 Comprehensive test coverage with mocks
+- 🔥 Hot reload development workflow with Air
+- 🚀 Production-ready error handling and graceful shutdown
+
+## 🏛️ Architecture Highlights
+
+### Clean Architecture (Hexagonal)
+
+```
+┌─────────────────────────────────────────────────┐
+│             External Interfaces                 │
+│  (HTTP Handlers, YouTube API Client)           │
+│            /adapters/http                       │
+│            /adapters/youtube                    │
+└────────────────┬────────────────────────────────┘
+                 │
+┌────────────────▼────────────────────────────────┐
+│              Port Interfaces                    │
+│         (Dependency Inversion)                  │
+│              /ports                             │
+└────────────────┬────────────────────────────────┘
+                 │
+┌────────────────▼────────────────────────────────┐
+│            Business Logic                       │
+│         (Framework Agnostic)                    │
+│            /usecases                            │
+└────────────────┬────────────────────────────────┘
+                 │
+┌────────────────▼────────────────────────────────┐
+│           Domain Entities                       │
+│         (Pure Business Objects)                 │
+│            /entities                            │
+└─────────────────────────────────────────────────┘
+```
+
+### Key Patterns Demonstrated
+
+- **Dependency Injection**: All dependencies injected via constructors
+- **Interface Segregation**: Small, focused port interfaces
+- **Testability**: Business logic fully unit tested with mocks
+- **Separation of Concerns**: Clear boundaries between layers
+- **Configuration Management**: Env vars + YAML with proper injection
+
+## 🛠️ Tech Stack
+
+| Layer | Technology | Purpose |
+|-------|-----------|---------|
+| **Web Framework** | [Gin](https://gin-gonic.com/) | Fast HTTP router |
+| **Templating** | [Templ](https://templ.guide/) | Type-safe Go templates |
+| **Interactivity** | [HTMX](https://htmx.org/) | Dynamic UI without JS frameworks |
+| **External API** | YouTube Data API v3 | Video search |
+| **Testing** | testify/mock | Unit tests with mocks |
+| **Dev Tools** | Air | Hot reload |
+
+## 📁 Project Structure
 
 ```
 zentube/
 ├── cmd/zentube/          # Application entry point
+│   └── main.go           # Server setup, graceful shutdown
 ├── internal/
-│   ├── adapters/         # External adapters
-│   │   ├── http/         # HTTP handlers, routes, middleware
-│   │   └── youtube/      # YouTube API client
-│   ├── entities/         # Domain entities
-│   ├── ports/            # Port interfaces
-│   ├── usecases/         # Business logic
-│   └── config/           # Configuration
+│   ├── adapters/         # External adapters (infrastructure)
+│   │   ├── http/         # HTTP layer (Gin handlers, middleware, routes)
+│   │   └── youtube/      # YouTube API client implementation
+│   ├── entities/         # Domain entities (pure business objects)
+│   ├── ports/            # Port interfaces (dependency inversion)
+│   ├── usecases/         # Business logic (framework-agnostic)
+│   └── config/           # Configuration management
 ├── web/
 │   ├── templates/        # Templ components
-│   │   ├── layouts/
-│   │   ├── pages/
-│   │   └── components/
-│   └── static/           # Static assets (CSS, JS)
-└── configs/              # Config files
+│   │   ├── layouts/      # Page layouts
+│   │   ├── pages/        # Full page templates
+│   │   └── components/   # Reusable UI components
+│   └── static/           # CSS, JS, assets
+└── configs/              # Configuration files
 
 ```
 
-## Prerequisites
+## 🚀 Getting Started
+
+### Prerequisites
 
 - Go 1.21+
 - [Templ](https://templ.guide/) - `go install github.com/a-h/templ/cmd/templ@latest`
 - [Air](https://github.com/air-verse/air) (optional, for hot reload)
-- YouTube Data API v3 key
+- YouTube Data API v3 key ([Get one here](https://console.cloud.google.com/apis/credentials))
 
-## Setup
+### Installation
 
 1. **Clone the repository**
    ```bash
@@ -58,32 +116,32 @@ zentube/
 2. **Install dependencies**
    ```bash
    make deps
-   # or manually:
-   go mod download
    ```
 
 3. **Set up environment variables**
+   
+   Create a `.env` file in the project root:
    ```bash
-   cp .env.example .env
-   # Edit .env and add your YouTube API key
+   YOUTUBE_API_KEY=your_api_key_here
    ```
 
-4. **Generate templates**
+4. **Generate Templ templates**
    ```bash
    make templ
    ```
 
 5. **Run the application**
    ```bash
-   # Development (with hot reload)
+   # Development mode (with hot reload)
    make dev
 
-   # Production
-   make build
-   ./zentube
+   # Production mode
+   make run
    ```
 
-## Available Commands
+6. **Visit** `http://localhost:8080`
+
+## 📝 Available Commands
 
 ```bash
 make help           # Show all available commands
@@ -91,12 +149,68 @@ make deps           # Install dependencies
 make templ          # Generate templ files
 make build          # Build the application
 make run            # Build and run
-make dev            # Run with hot reload
+make dev            # Run with hot reload (Air)
 make test           # Run tests
-make test-coverage  # Run tests with coverage
+make test-coverage  # Run tests with coverage report
 make clean          # Clean build artifacts
-make fmt            # Format code
+make fmt            # Format code (Go + Templ)
 ```
+
+## 🧪 Testing
+
+The project demonstrates proper testing practices:
+
+```bash
+# Run all tests
+make test
+
+# Generate coverage report
+make test-coverage
+# Opens coverage.html in your browser
+```
+
+Tests use the **testify/mock** library to mock external dependencies, ensuring business logic is tested in isolation.
+
+## 🔮 Roadmap
+
+- [ ] Database integration (SQLite)
+- [ ] Docker and Docker Compose setup
+- [ ] User favorites
+- [ ] Comprehensive technical article
+
+## 📚 Learning Resources
+
+This project is designed to teach:
+
+- **Clean Architecture** in Go
+- **HTMX** for modern, server-driven UIs
+- **Templ** for type-safe templating
+- **Dependency Injection** without frameworks
+- **Testing** with mocks and interfaces
+- **Graceful Shutdown** patterns
+- **Configuration Management** best practices
+
+## 📖 Article (Coming Soon)
+
+A detailed technical article explaining the architecture, design decisions, and patterns used in this project will be published soon.
+
+## 🤝 Contributing
+
+This is primarily a learning/portfolio project, but suggestions and feedback are welcome! Feel free to open issues or submit PRs.
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- Built with inspiration from Uncle Bob's Clean Architecture
+- HTMX for making server-side rendering cool again
+- The Go community for excellent tooling
+
+---
+
+**Note**: This project is under active development. The current implementation focuses on demonstrating clean architecture patterns. Database features and Docker configuration will be added in future iterations.
 
 ## Configuration
 
