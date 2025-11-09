@@ -29,20 +29,20 @@ func SearchForm(query string) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<form hx-post=\"/search\" hx-target=\"#results\" hx-swap=\"outerHTML\"><input type=\"text\" name=\"q\" placeholder=\"Search YouTube...\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<form class=\"search-form\" hx-post=\"/search\" hx-target=\"#results\" hx-swap=\"outerHTML\"><input type=\"text\" name=\"q\" class=\"search-input\" placeholder=\"Search YouTube...\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(query)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/templates/components/search_form.templ`, Line: 5, Col: 75}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/templates/components/search_form.templ`, Line: 10, Col: 16}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\" required> <button type=\"submit\" class=\"search-btn\">Search</button></form>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\" required autocomplete=\"off\"> <button type=\"submit\" class=\"search-button\">Search</button></form>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

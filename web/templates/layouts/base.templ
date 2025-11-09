@@ -7,23 +7,13 @@ templ Layout(title string) {
 			<meta charset="UTF-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 			<title>{ title }</title>
+			<link rel="stylesheet" href="/static/css/styles.css"/>
 			<script src="/static/js/htmx.min.js"></script>
-			<style>
-			* { font-family: system-ui, sans-serif; margin: 0; padding: 0; }
-			body { padding: 2rem; max-width: 800px; margin: 0 auto; }
-			input[type="text"] { width: 100%; padding: 0.75rem; font-size: 1.1rem; }
-			.search-btn { padding: 0.75rem 1.5rem; font-size: 1.1rem; margin-top: 1rem; }
-			.result { margin: 1.5rem 0; display: flex; gap: 1rem; }
-			.result img { width: 120px; height: 90px; object-fit: cover; border-radius: 6px; }
-			.result-info { flex: 1; }
-			.result-title { font-weight: 600; margin-bottom: 0.25rem; }
-			.result-meta { color: #666; font-size: 0.9rem; }
-			.result a { color: #1a0dab; text-decoration: none; }
-			.result a:hover { text-decoration: underline; }
-		</style>
 		</head>
 		<body>
-			{ children... }
+			<div class="container">
+				{ children... }
+			</div>
 		</body>
 	</html>
 }

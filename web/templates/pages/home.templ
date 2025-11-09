@@ -8,7 +8,7 @@ import (
 
 templ HomePage(query string, videos []entities.Video) {
 	@layouts.Layout("zentube – YouTube Search") {
-		<h1 style="margin-bottom: 1rem;">zentube</h1>
+		<h1>zentube</h1>
 		@components.SearchForm(query)
 		@components.SearchResults(videos)
 	}

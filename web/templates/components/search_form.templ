@@ -1,8 +1,16 @@
 package components
 
 templ SearchForm(query string) {
-	<form hx-post="/search" hx-target="#results" hx-swap="outerHTML">
-		<input type="text" name="q" placeholder="Search YouTube..." value={ query } required/>
-		<button type="submit" class="search-btn">Search</button>
+	<form class="search-form" hx-post="/search" hx-target="#results" hx-swap="outerHTML">
+		<input 
+			type="text" 
+			name="q" 
+			class="search-input"
+			placeholder="Search YouTube..." 
+			value={ query } 
+			required
+			autocomplete="off"
+		/>
+		<button type="submit" class="search-button">Search</button>
 	</form>
 }

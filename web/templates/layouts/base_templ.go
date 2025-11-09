@@ -42,7 +42,7 @@ func Layout(title string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</title><script src=\"/static/js/htmx.min.js\"></script><style>\n\t\t\t* { font-family: system-ui, sans-serif; margin: 0; padding: 0; }\n\t\t\tbody { padding: 2rem; max-width: 800px; margin: 0 auto; }\n\t\t\tinput[type=\"text\"] { width: 100%; padding: 0.75rem; font-size: 1.1rem; }\n\t\t\t.search-btn { padding: 0.75rem 1.5rem; font-size: 1.1rem; margin-top: 1rem; }\n\t\t\t.result { margin: 1.5rem 0; display: flex; gap: 1rem; }\n\t\t\t.result img { width: 120px; height: 90px; object-fit: cover; border-radius: 6px; }\n\t\t\t.result-info { flex: 1; }\n\t\t\t.result-title { font-weight: 600; margin-bottom: 0.25rem; }\n\t\t\t.result-meta { color: #666; font-size: 0.9rem; }\n\t\t\t.result a { color: #1a0dab; text-decoration: none; }\n\t\t\t.result a:hover { text-decoration: underline; }\n\t\t</style></head><body>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</title><link rel=\"stylesheet\" href=\"/static/css/styles.css\"><script src=\"/static/js/htmx.min.js\"></script></head><body><div class=\"container\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -50,7 +50,7 @@ func Layout(title string) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</body></html>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</div></body></html>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

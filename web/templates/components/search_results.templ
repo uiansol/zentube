@@ -3,9 +3,9 @@ package components
 import "github.com/uiansol/zentube/internal/entities"
 
 templ SearchResults(videos []entities.Video) {
-	<div id="results" style="margin-top: 2rem;">
+	<div id="results">
 		if len(videos) == 0 {
-			<p>No results found.</p>
+			<p class="no-results">No results found.</p>
 		} else {
 			for _, v := range videos {
 				@VideoResult(v)
