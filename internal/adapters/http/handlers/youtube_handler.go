@@ -32,7 +32,7 @@ func (h *YouTubeHandler) Search(c *gin.Context) {
 
 	videos, err := h.searchUC.Execute(query, h.maxResults)
 	if err != nil {
-		c.String(http.StatusInternalServerError, "Search failed")
+		respondError(c, http.StatusInternalServerError, "Failed to search videos")
 		return
 	}
 
