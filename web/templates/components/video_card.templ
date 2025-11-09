@@ -3,14 +3,12 @@ package components
 import "github.com/uiansol/zentube/internal/entities"
 
 templ VideoResult(v entities.Video) {
-	<div class="video-card">
-		<a href={ templ.URL("https://youtube.com/watch?v=" + v.ID) } target="_blank" rel="noopener noreferrer">
-			<img src={ v.Thumbnail } alt={ v.Title } class="video-thumbnail"/>
-		</a>
+	<div class="video-card" onclick={ templ.ComponentScript{Call: "openVideoPlayer('" + v.ID + "', '" + v.Title + "')"} }>
+		<img src={ v.Thumbnail } alt={ v.Title } class="video-thumbnail"/>
 		<div class="video-info">
-			<a href={ templ.URL("https://youtube.com/watch?v=" + v.ID) } target="_blank" rel="noopener noreferrer" class="video-title">
+			<div class="video-title">
 				{ v.Title }
-			</a>
+			</div>
 			<div class="video-meta">
 				<span class="video-channel">{ v.Channel }</span>
 				<span class="video-date">{ v.PublishedAt.Format("Jan 2, 2006") }</span>
