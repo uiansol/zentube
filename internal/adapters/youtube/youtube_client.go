@@ -24,10 +24,14 @@ func NewYouTubeClient(apiKey string) (*YouTubeClient, error) {
 }
 
 func (c *YouTubeClient) Search(query string, maxResults int64) ([]entities.Video, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
 	call := c.service.Search.List([]string{"snippet"}).
 		Q(query).
 		Type("video").
-		MaxResults(maxResults)
+		MaxResults(maxResults).
+		Context(ctx)
 
 	resp, err := call.Do()
 	if err != nil {

@@ -20,13 +20,18 @@ func NewYouTubeHandler(searchUC *usecases.SearchVideos, maxResults int64) *YouTu
 }
 
 func (h *YouTubeHandler) Home(c *gin.Context) {
-	pages.HomePage("", nil).Render(c.Request.Context(), c.Writer)
+	if err := pages.HomePage("", nil).Render(c.Request.Context(), c.Writer); err != nil {
+		respondError(c, http.StatusInternalServerError, "Failed to render page")
+		return
+	}
 }
 
 func (h *YouTubeHandler) Search(c *gin.Context) {
 	query := c.PostForm("q")
 	if query == "" {
-		components.SearchResults(nil).Render(c.Request.Context(), c.Writer)
+		if err := components.SearchResults(nil).Render(c.Request.Context(), c.Writer); err != nil {
+			respondError(c, http.StatusInternalServerError, "Failed to render search results")
+		}
 		return
 	}
 
@@ -38,9 +43,13 @@ func (h *YouTubeHandler) Search(c *gin.Context) {
 
 	// Check if it's an HTMX request - return only results fragment
 	if middleware.IsHTMXRequest(c) {
-		components.SearchResults(videos).Render(c.Request.Context(), c.Writer)
+		if err := components.SearchResults(videos).Render(c.Request.Context(), c.Writer); err != nil {
+			respondError(c, http.StatusInternalServerError, "Failed to render search results")
+		}
 	} else {
 		// Regular request - return full page
-		pages.HomePage(query, videos).Render(c.Request.Context(), c.Writer)
+		if err := pages.HomePage(query, videos).Render(c.Request.Context(), c.Writer); err != nil {
+			respondError(c, http.StatusInternalServerError, "Failed to render page")
+		}
 	}
 }

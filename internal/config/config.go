@@ -53,7 +53,7 @@ func LoadConfig(file string) (*Config, error) {
 func InjectEnvVariables(config *Config) error {
 	apiKey := os.Getenv("YOUTUBE_API_KEY")
 	if apiKey == "" {
-		panic("YOUTUBE_API_KEY environment variable not set")
+		return errors.New("YOUTUBE_API_KEY environment variable not set")
 	}
 	config.YouTube.APIKey = apiKey
 	return nil
