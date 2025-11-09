@@ -3,12 +3,12 @@ package layouts
 templ Layout(title string) {
 	<!DOCTYPE html>
 	<html lang="en">
-	<head>
-		<meta charset="UTF-8"/>
-		<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-		<title>{ title }</title>
-		<script src="/static/js/htmx.min.js"></script>
-		<style>
+		<head>
+			<meta charset="UTF-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+			<title>{ title }</title>
+			<script src="/static/js/htmx.min.js"></script>
+			<style>
 			* { font-family: system-ui, sans-serif; margin: 0; padding: 0; }
 			body { padding: 2rem; max-width: 800px; margin: 0 auto; }
 			input[type="text"] { width: 100%; padding: 0.75rem; font-size: 1.1rem; }
@@ -21,9 +21,9 @@ templ Layout(title string) {
 			.result a { color: #1a0dab; text-decoration: none; }
 			.result a:hover { text-decoration: underline; }
 		</style>
-	</head>
-	<body>
-		{ children... }
-	</body>
+		</head>
+		<body>
+			{ children... }
+		</body>
 	</html>
 }
