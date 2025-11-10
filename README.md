@@ -1,20 +1,21 @@
 # ZenTube
 
-A modern YouTube search interface demonstrating clean architecture patterns with Go, HTMX, and Templ. Built as a **portfolio project** and **reference scaffolding** for developers learning this stack.
+A minimalist YouTube search interface built with Go, HTMX, and Templ. Designed to help you find videos without getting lost in the endless rabbit hole of recommendations.
 
-## 🎯 Project Goals
+## 💡 Motivation
 
-This project serves as:
+YouTube's recommendation algorithm is designed to maximize engagement, which often means losing hours to suggested videos you never intended to watch. This project was born from a real frustration: wanting to quickly search for specific content without getting distracted by the endless stream of recommended videos.
 
-1. **Portfolio Piece**: Demonstrating proficiency with modern Go web development
-2. **Reference Architecture**: Clean, production-ready scaffolding for Go + HTMX + Templ projects
-3. **Learning Resource**: Companion codebase for an upcoming technical article explaining these architectural patterns
+ZenTube provides a clean, focused interface - just search, find what you need, and move on. No distractions, no wasted time.
+
+Additionally, this project serves as **reference scaffolding** for developers learning the Go + HTMX + Templ stack, demonstrating clean architecture patterns and modern web development practices.
 
 > **Note**: This is a work-in-progress. Future additions will include database integration, Docker setup, and additional features.
 
 ## ✨ Features
 
 - 🔍 Clean, distraction-free YouTube search interface
+- 🚫 No recommendations, no algorithmic rabbit holes
 - ⚡ HTMX-powered SPA-like experience without JavaScript frameworks
 - 🎨 Server-side rendering with type-safe Templ templates
 - 🏗️ **Clean Architecture** (Hexagonal/Ports & Adapters pattern)
