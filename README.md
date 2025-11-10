@@ -12,6 +12,10 @@ Additionally, this project serves as **reference scaffolding** for developers le
 
 > **Note**: This is a work-in-progress. Future additions will include database integration, Docker setup, and additional features.
 
+<div align="center">
+   <img src="zentube_1.png" width="400" alt="Zentube main page">
+</div>
+
 ## ✨ Features
 
 - 🔍 Clean, distraction-free YouTube search interface
@@ -30,7 +34,7 @@ Additionally, this project serves as **reference scaffolding** for developers le
 ```
 ┌─────────────────────────────────────────────────┐
 │             External Interfaces                 │
-│  (HTTP Handlers, YouTube API Client)           │
+│  (HTTP Handlers, YouTube API Client)            │
 │            /adapters/http                       │
 │            /adapters/youtube                    │
 └────────────────┬────────────────────────────────┘
@@ -175,8 +179,8 @@ Tests use the **testify/mock** library to mock external dependencies, ensuring b
 ## 🔮 Roadmap
 
 - [ ] Database integration (SQLite)
-- [ ] Docker and Docker Compose setup
 - [ ] User favorites
+- [ ] Docker and Docker Compose setup
 - [ ] Comprehensive technical article
 
 ## 📚 Learning Resources
