@@ -1,0 +1,13 @@
+package components
+
+templ VideoPlayer() {
+	<div id="video-player" class="video-player">
+		<div class="video-player-header">
+			<h3 id="video-player-title" class="video-player-title"></h3>
+			<button class="video-player-close" onclick={ templ.ComponentScript{Call: "closeVideoPlayer()"} } aria-label="Close video">&times;</button>
+		</div>
+		<div class="video-player-content">
+			<iframe id="video-iframe" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+		</div>
+	</div>
+}
