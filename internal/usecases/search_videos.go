@@ -1,6 +1,7 @@
 package usecases
 
 import (
+	"context"
 	"time"
 
 	"github.com/uiansol/zentube/internal/entities"
@@ -19,25 +20,27 @@ func NewSearchVideos(ytClient ports.YouTubeClient, historyRepo ports.SearchHisto
 	}
 }
 
-func (s *SearchVideos) Execute(query string, maxResults int64) ([]entities.Video, error) {
+func (s *SearchVideos) Execute(ctx context.Context, query string, maxResults int64) ([]entities.Video, error) {
 	videos, err := s.ytClient.Search(query, maxResults)
 	if err != nil {
 		return nil, err
 	}
 
-	// Save search history
-	history := &entities.SearchHistory{
-		Query:     query,
-		Results:   len(videos),
-		CreatedAt: time.Now(),
-	}
+	// Save search history asynchronously with a timeout
+	// Use background context with timeout to avoid blocking the response
+	go func() {
+		saveCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
 
-	// Don't fail the search if history save fails, just log it
-	if err := s.historyRepo.Save(history); err != nil {
-		// In production, you might want to use a proper logger here
-		// For now, we'll silently ignore the error
-		_ = err
-	}
+		history := &entities.SearchHistory{
+			Query:     query,
+			Results:   len(videos),
+			CreatedAt: time.Now(),
+		}
+
+		// Don't fail the search if history save fails
+		_ = s.historyRepo.Save(saveCtx, history)
+	}()
 
 	return videos, nil
 }

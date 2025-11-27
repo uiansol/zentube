@@ -1,8 +1,12 @@
 package ports
 
-import "github.com/uiansol/zentube/internal/entities"
+import (
+	"context"
+
+	"github.com/uiansol/zentube/internal/entities"
+)
 
 type SearchHistoryRepository interface {
-	Save(history *entities.SearchHistory) error
-	GetLast(limit int) ([]entities.SearchHistory, error)
+	Save(ctx context.Context, history *entities.SearchHistory) error
+	GetLast(ctx context.Context, limit int) ([]entities.SearchHistory, error)
 }
