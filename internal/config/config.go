@@ -20,10 +20,16 @@ type YouTube struct {
 	MaxResults int64  `yaml:"max_results"`
 }
 
+// Public, tiny struct that contains database configs
+type Database struct {
+	Path string `yaml:"path"`
+}
+
 // Full app config
 type Config struct {
-	App     App     `yaml:"app"`
-	YouTube YouTube `yaml:"youtube"`
+	App      App      `yaml:"app"`
+	YouTube  YouTube  `yaml:"youtube"`
+	Database Database `yaml:"database"`
 }
 
 // Load .env → env vars

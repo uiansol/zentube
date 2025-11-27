@@ -6,6 +6,7 @@ require (
 	github.com/a-h/templ v0.3.960
 	github.com/gin-gonic/gin v1.11.0
 	github.com/joho/godotenv v1.5.1
+	github.com/mattn/go-sqlite3 v1.14.32
 	github.com/stretchr/testify v1.11.1
 	google.golang.org/api v0.255.0
 	gopkg.in/yaml.v3 v3.0.1

@@ -11,7 +11,7 @@ deps: ## Install dependencies
 
 templ: ## Generate templ files
 	@echo "Generating templates..."
-	@templ generate
+	@$(shell go env GOPATH)/bin/templ generate
 
 build: templ ## Build the application
 	@echo "Building zentube..."

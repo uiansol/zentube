@@ -7,11 +7,13 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strconv"
 	"syscall"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/uiansol/zentube/internal/adapters/database"
 	"github.com/uiansol/zentube/internal/adapters/http/handlers"
 	"github.com/uiansol/zentube/internal/adapters/http/routes"
 	"github.com/uiansol/zentube/internal/adapters/youtube"
@@ -50,8 +52,25 @@ func run() error {
 		return fmt.Errorf("failed to create youtube client: %w", err)
 	}
 
+	// Initialize database
+	// Ensure the database directory exists
+	dbDir := filepath.Dir(cfg.Database.Path)
+	if err := os.MkdirAll(dbDir, 0755); err != nil {
+		return fmt.Errorf("failed to create database directory: %w", err)
+	}
+
+	dbRepo, err := database.NewSQLiteRepository(cfg.Database.Path)
+	if err != nil {
+		return fmt.Errorf("failed to initialize database: %w", err)
+	}
+	defer func() {
+		if err := dbRepo.Close(); err != nil {
+			log.Printf("Error closing database: %v", err)
+		}
+	}()
+
 	// Initialize use cases
-	searchVideos := usecases.NewSearchVideos(ytClient)
+	searchVideos := usecases.NewSearchVideos(ytClient, dbRepo)
 	ytHandler := handlers.NewYouTubeHandler(searchVideos, cfg.YouTube.MaxResults)
 
 	// Setup Gin router

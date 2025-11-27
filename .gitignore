@@ -32,6 +32,9 @@ zentube
 tmp/
 *.log
 
+# Database
+data/
+
 # Generated templ files
 *_templ.go
 
