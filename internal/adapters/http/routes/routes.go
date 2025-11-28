@@ -6,13 +6,18 @@ import (
 	"github.com/uiansol/zentube/internal/adapters/http/middleware"
 )
 
-func RegisterRoutes(r *gin.Engine, h *handlers.YouTubeHandler) {
-	// Apply middleware
-	r.Use(middleware.Logger())
+func RegisterRoutes(r *gin.Engine, h *handlers.YouTubeHandler, health *handlers.HealthHandler) {
+	// Apply HTMX middleware for all routes
 	r.Use(middleware.HTMX())
 
-	// Routes
+	// Health check endpoints (no rate limiting)
+	r.GET("/health/live", health.Live)
+	r.GET("/health/ready", health.Ready)
+
+	// Static files
 	r.Static("/static", "./web/static")
+
+	// Application routes
 	r.GET("/", h.Home)
 	r.POST("/search", h.Search)
 }

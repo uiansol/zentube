@@ -182,3 +182,8 @@ func (r *SQLiteRepository) Close() error {
 
 	return nil
 }
+
+// DB returns the underlying database connection for health checks
+func (r *SQLiteRepository) DB() *sql.DB {
+	return r.db
+}

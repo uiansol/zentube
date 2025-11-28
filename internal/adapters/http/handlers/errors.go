@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	"log"
+	"log/slog"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -14,9 +14,19 @@ type ErrorResponse struct {
 	Message string `json:"message,omitempty"`
 }
 
-// respondError handles error responses
+// respondError handles error responses with structured logging
 func respondError(c *gin.Context, statusCode int, message string) {
-	log.Printf("Error: %s (status: %d)", message, statusCode)
+	// Get request ID for tracing
+	requestID, _ := c.Get("request_id")
+
+	// Log the error with structured fields
+	slog.Error("request error",
+		slog.String("message", message),
+		slog.Int("status", statusCode),
+		slog.String("request_id", requestID.(string)),
+		slog.String("path", c.Request.URL.Path),
+		slog.String("method", c.Request.Method),
+	)
 
 	// For HTMX requests, return simple error message
 	if middleware.IsHTMXRequest(c) {

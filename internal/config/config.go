@@ -2,6 +2,7 @@ package config
 
 import (
 	"errors"
+	"fmt"
 	"os"
 
 	"github.com/joho/godotenv"
@@ -62,5 +63,37 @@ func InjectEnvVariables(config *Config) error {
 		return errors.New("YOUTUBE_API_KEY environment variable not set")
 	}
 	config.YouTube.APIKey = apiKey
+	return nil
+}
+
+// Validate checks if the configuration is valid
+func (c *Config) Validate() error {
+	var errs []error
+
+	// Validate App config
+	if c.App.Name == "" {
+		errs = append(errs, errors.New("app.name cannot be empty"))
+	}
+	if c.App.Port < 1 || c.App.Port > 65535 {
+		errs = append(errs, fmt.Errorf("app.port must be between 1 and 65535, got %d", c.App.Port))
+	}
+
+	// Validate YouTube config
+	if c.YouTube.APIKey == "" {
+		errs = append(errs, errors.New("youtube.api_key cannot be empty"))
+	}
+	if c.YouTube.MaxResults < 1 || c.YouTube.MaxResults > 50 {
+		errs = append(errs, fmt.Errorf("youtube.max_results must be between 1 and 50, got %d", c.YouTube.MaxResults))
+	}
+
+	// Validate Database config
+	if c.Database.Path == "" {
+		errs = append(errs, errors.New("database.path cannot be empty"))
+	}
+
+	if len(errs) > 0 {
+		return fmt.Errorf("configuration validation failed: %v", errs)
+	}
+
 	return nil
 }

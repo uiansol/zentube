@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -15,11 +15,13 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/uiansol/zentube/internal/adapters/database"
 	"github.com/uiansol/zentube/internal/adapters/http/handlers"
+	"github.com/uiansol/zentube/internal/adapters/http/middleware"
 	"github.com/uiansol/zentube/internal/adapters/http/routes"
 	"github.com/uiansol/zentube/internal/adapters/youtube"
 	"github.com/uiansol/zentube/internal/config"
 	"github.com/uiansol/zentube/internal/usecases"
 	"github.com/uiansol/zentube/web/templates/pages"
+	"golang.org/x/time/rate"
 )
 
 func main() {
@@ -30,6 +32,18 @@ func main() {
 }
 
 func run() error {
+	// Determine environment
+	env := os.Getenv("APP_ENV")
+	if env == "" {
+		env = "development"
+	}
+
+	// Initialize structured logger
+	logger := middleware.NewLogger(env)
+	slog.SetDefault(logger) // Set as default logger for the application
+
+	logger.Info("starting zentube", slog.String("env", env))
+
 	// Load environment variables
 	if err := config.LoadEnv(); err != nil {
 		return fmt.Errorf("failed to load environment: %w", err)
@@ -45,6 +59,16 @@ func run() error {
 	if err := config.InjectEnvVariables(cfg); err != nil {
 		return fmt.Errorf("failed to inject env variables: %w", err)
 	}
+
+	// Validate configuration
+	if err := cfg.Validate(); err != nil {
+		return fmt.Errorf("configuration validation failed: %w", err)
+	}
+
+	logger.Info("configuration loaded successfully",
+		slog.String("app_name", cfg.App.Name),
+		slog.Int("port", cfg.App.Port),
+	)
 
 	// Initialize YouTube client
 	ytClient, err := youtube.NewYouTubeClient(cfg.YouTube.APIKey)
@@ -67,10 +91,21 @@ func run() error {
 	// Initialize use cases
 	searchVideos := usecases.NewSearchVideos(ytClient, dbRepo)
 	ytHandler := handlers.NewYouTubeHandler(searchVideos, cfg.YouTube.MaxResults)
+	healthHandler := handlers.NewHealthHandler(dbRepo.DB(), logger)
 
-	// Setup Gin router
-	r := gin.Default()
-	routes.RegisterRoutes(r, ytHandler)
+	// Setup Gin router (disable default middleware, we'll add our own)
+	gin.SetMode(gin.ReleaseMode)
+	r := gin.New()
+
+	// Apply custom middleware in order
+	r.Use(middleware.Recovery(logger))                      // Recover from panics
+	r.Use(middleware.RequestID())                           // Generate request IDs
+	r.Use(middleware.Middleware(logger))                    // Structured logging
+	r.Use(middleware.SecurityHeaders())                     // Security headers
+	r.Use(middleware.RateLimit(rate.Limit(10), 20, logger)) // 10 req/sec, burst 20
+
+	// Register routes
+	routes.RegisterRoutes(r, ytHandler, healthHandler)
 
 	// Ensure templates compile (helps catch errors early)
 	_ = pages.HomePage("", nil)
@@ -81,17 +116,25 @@ func run() error {
 		port = 8080
 	}
 
-	// Create HTTP server
+	// Create HTTP server with timeouts
 	srv := &http.Server{
-		Addr:    ":" + strconv.Itoa(port),
-		Handler: r,
+		Addr:           ":" + strconv.Itoa(port),
+		Handler:        r,
+		ReadTimeout:    10 * time.Second,
+		WriteTimeout:   10 * time.Second,
+		IdleTimeout:    60 * time.Second,
+		MaxHeaderBytes: 1 << 20, // 1 MB
 	}
 
 	// Start server in a goroutine
 	go func() {
-		log.Printf("🚀 zentube running on http://localhost:%d", port)
+		logger.Info("server started",
+			slog.Int("port", port),
+			slog.String("address", fmt.Sprintf("http://localhost:%d", port)),
+		)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Server failed to start: %v", err)
+			logger.Error("server failed to start", slog.Any("error", err))
+			os.Exit(1)
 		}
 	}()
 
@@ -100,7 +143,7 @@ func run() error {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	log.Println("🛑 Shutting down server...")
+	logger.Info("shutdown signal received")
 
 	// Give active connections 5 seconds to complete
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -108,15 +151,15 @@ func run() error {
 
 	// Shutdown HTTP server first (stops accepting new requests, waits for active ones)
 	if err := srv.Shutdown(ctx); err != nil {
-		log.Printf("Server forced to shutdown: %v", err)
+		logger.Error("server forced to shutdown", slog.Any("error", err))
 	}
 
 	// Now it's safe to close the database (all HTTP handlers have completed)
-	log.Println("Closing database connection...")
+	logger.Info("closing database connection")
 	if err := dbRepo.Close(); err != nil {
-		log.Printf("Error closing database: %v", err)
+		logger.Error("error closing database", slog.Any("error", err))
 	}
 
-	log.Println("✅ Server exited gracefully")
+	logger.Info("server exited gracefully")
 	return nil
 }

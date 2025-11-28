@@ -5,9 +5,11 @@ go 1.25.3
 require (
 	github.com/a-h/templ v0.3.960
 	github.com/gin-gonic/gin v1.11.0
+	github.com/google/uuid v1.6.0
 	github.com/joho/godotenv v1.5.1
 	github.com/mattn/go-sqlite3 v1.14.32
 	github.com/stretchr/testify v1.11.1
+	golang.org/x/time v0.14.0
 	google.golang.org/api v0.255.0
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -31,7 +33,6 @@ require (
 	github.com/goccy/go-json v0.10.2 // indirect
 	github.com/goccy/go-yaml v1.18.0 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
-	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.6 // indirect
 	github.com/googleapis/gax-go/v2 v2.15.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
