@@ -1256,8 +1256,833 @@ These eight patterns form the foundation of production-ready Go applications:
 
 **All implemented with pure Go** - no external infrastructure required.
 
+---
+
+## Medium Priority Patterns
+
+### 9. Custom Error Types
+
+### Implementation
+**Files:** 
+- `internal/errors/errors.go` - Error type definitions
+- `internal/adapters/http/handlers/errors.go` - Error response handling
+
+### Why Custom Error Types?
+
+Generic errors:
+```go
+return nil, errors.New("invalid query")
+// How should HTTP handler map this to status code?
+```
+
+**Problems:**
+- No context about error category
+- Can't differentiate client vs server errors
+- Loss of information across boundaries
+- Inconsistent HTTP status codes
+
+Custom error types:
+```go
+return nil, apperrors.NewValidationError("invalid query", "query length exceeds maximum")
+```
+
+### Pattern: Domain-Specific Errors
+
+```go
+// internal/errors/errors.go
+package errors
+
+import "net/http"
+
+// ErrorType categorizes errors for appropriate handling
+type ErrorType string
+
+const (
+    ErrorTypeValidation  ErrorType = "VALIDATION_ERROR"
+    ErrorTypeNotFound    ErrorType = "NOT_FOUND"
+    ErrorTypeInternal    ErrorType = "INTERNAL_ERROR"
+    ErrorTypeUnauthorized ErrorType = "UNAUTHORIZED"
+)
+
+// AppError represents application-specific errors with HTTP context
+type AppError struct {
+    Type    ErrorType
+    Message string
+    Details string
+    Err     error
+}
+
+func (e *AppError) Error() string {
+    if e.Err != nil {
+        return e.Message + ": " + e.Err.Error()
+    }
+    return e.Message
+}
+
+// Unwrap enables error chain inspection
+func (e *AppError) Unwrap() error {
+    return e.Err
+}
+
+// Constructor functions for common error types
+func NewValidationError(message, details string) *AppError {
+    return &AppError{
+        Type:    ErrorTypeValidation,
+        Message: message,
+        Details: details,
+    }
+}
+
+func NewNotFoundError(message string) *AppError {
+    return &AppError{
+        Type:    ErrorTypeNotFound,
+        Message: message,
+    }
+}
+
+func NewInternalError(message string, err error) *AppError {
+    return &AppError{
+        Type:    ErrorTypeInternal,
+        Message: message,
+        Err:     err,
+    }
+}
+
+// GetStatusCode maps error types to HTTP status codes
+func GetStatusCode(err error) int {
+    if appErr, ok := err.(*AppError); ok {
+        switch appErr.Type {
+        case ErrorTypeValidation:
+            return http.StatusBadRequest
+        case ErrorTypeNotFound:
+            return http.StatusNotFound
+        case ErrorTypeUnauthorized:
+            return http.StatusUnauthorized
+        default:
+            return http.StatusInternalServerError
+        }
+    }
+    return http.StatusInternalServerError
+}
+```
+
+### Usage in Handlers
+
+```go
+// Before: Generic error handling
+func (h *Handler) Search(c *gin.Context) {
+    videos, err := h.useCase.Execute(ctx, query, maxResults)
+    if err != nil {
+        c.JSON(500, gin.H{"error": err.Error()}) // Always 500!
+        return
+    }
+}
+
+// After: Type-aware error handling
+func (h *Handler) Search(c *gin.Context) {
+    videos, err := h.useCase.Execute(ctx, query, maxResults)
+    if err != nil {
+        respondError(c, err)
+        return
+    }
+}
+
+func respondError(c *gin.Context, err error) {
+    statusCode := apperrors.GetStatusCode(err)
+    
+    response := ErrorResponse{
+        Error:   err.Error(),
+        Status:  statusCode,
+    }
+    
+    // Add details for non-500 errors
+    if appErr, ok := err.(*apperrors.AppError); ok && statusCode < 500 {
+        response.Details = appErr.Details
+    }
+    
+    c.JSON(statusCode, response)
+}
+```
+
+### Benefits
+
+1. **Consistent Status Codes**: Automatic mapping of error types to HTTP codes
+2. **Error Context**: Details field provides additional information
+3. **Error Wrapping**: Standard `errors.Unwrap` support
+4. **Type Safety**: Strongly typed error categories
+5. **Separation of Concerns**: Business logic doesn't need to know about HTTP
+
+### Production Gotchas
+
+- **Don't expose internal errors in production**: Hide stack traces and internal details in 500 responses
+- **Use details carefully**: Only expose validation details to clients, not internal errors
+- **Log everything**: Even client errors should be logged for analysis
+- **Maintain error chain**: Use `Unwrap()` for error inspection
+
+---
+
+### 10. Input Validation
+
+### Implementation
+**File:** `internal/validation/validation.go`
+
+### Why Input Validation?
+
+Without validation:
+```go
+func (h *Handler) Search(c *gin.Context) {
+    query := c.Query("q")
+    // What if query is empty, too long, or contains SQL injection?
+    videos, err := h.useCase.Execute(ctx, query, maxResults)
+}
+```
+
+**Security Risks:**
+- SQL injection (if not using parameterized queries)
+- XSS attacks
+- Resource exhaustion (huge queries)
+- Control character attacks
+
+### Pattern: Centralized Validation
+
+```go
+// internal/validation/validation.go
+package validation
+
+import (
+    "strings"
+    "unicode"
+    apperrors "github.com/uiansol/zentube/internal/errors"
+)
+
+const (
+    MaxQueryLength = 200
+    MinQueryLength = 1
+)
+
+// ValidateSearchQuery validates and sanitizes search queries
+func ValidateSearchQuery(query string) (string, error) {
+    // Check empty
+    if strings.TrimSpace(query) == "" {
+        return "", apperrors.NewValidationError(
+            "search query cannot be empty",
+            "please provide a search term",
+        )
+    }
+    
+    // Check length
+    if len(query) > MaxQueryLength {
+        return "", apperrors.NewValidationError(
+            "search query too long",
+            fmt.Sprintf("maximum length is %d characters", MaxQueryLength),
+        )
+    }
+    
+    // Sanitize: remove control characters and normalize whitespace
+    sanitized := sanitizeString(query)
+    normalized := normalizeWhitespace(sanitized)
+    
+    return normalized, nil
+}
+
+// sanitizeString removes potentially dangerous control characters
+func sanitizeString(s string) string {
+    return strings.Map(func(r rune) rune {
+        // Keep printable characters, spaces, and common punctuation
+        if unicode.IsPrint(r) || unicode.IsSpace(r) {
+            return r
+        }
+        return -1 // Remove control characters
+    }, s)
+}
+
+// normalizeWhitespace replaces multiple spaces with single space
+func normalizeWhitespace(s string) string {
+    return strings.Join(strings.Fields(s), " ")
+}
+```
+
+### Usage in Handler
+
+```go
+func (h *YouTubeHandler) Search(c *gin.Context) {
+    query := c.Query("q")
+    
+    // Validate and sanitize
+    validatedQuery, err := validation.ValidateSearchQuery(query)
+    if err != nil {
+        respondError(c, err)
+        return
+    }
+    
+    // Now safe to use
+    videos, err := h.searchVideos.Execute(c.Request.Context(), validatedQuery, h.maxResults)
+}
+```
+
+### Validation Checklist
+
+**String Validation:**
+- [ ] Length limits (prevent resource exhaustion)
+- [ ] Character whitelist (prevent injection)
+- [ ] Sanitization (remove dangerous characters)
+- [ ] Normalization (consistent format)
+
+**Numeric Validation:**
+- [ ] Range checks (min/max values)
+- [ ] Overflow protection
+- [ ] Type validation (int vs float)
+
+**General:**
+- [ ] Required fields
+- [ ] Format validation (email, URL, etc.)
+- [ ] Business logic validation
+
+### Benefits
+
+1. **Security**: Prevents injection attacks and XSS
+2. **Data Quality**: Ensures consistent, clean data
+3. **User Experience**: Clear error messages
+4. **Resource Protection**: Length limits prevent abuse
+5. **Maintainability**: Centralized validation logic
+
+### Production Gotchas
+
+- **Validate at boundaries**: API handlers, not just use cases
+- **Fail fast**: Validate before expensive operations
+- **Don't trust clients**: Even internal clients can send bad data
+- **Balance strictness**: Too strict = bad UX, too loose = security risk
+
+---
+
+### 11. API Response Caching
+
+### Implementation
+**Files:**
+- `internal/cache/cache.go` - In-memory TTL cache
+- `internal/usecases/search_videos.go` - Cache integration
+
+### Why Caching?
+
+Without caching:
+```go
+func (s *SearchVideos) Execute(query string) ([]Video, error) {
+    return s.ytClient.Search(query) // Every request = API call
+}
+```
+
+**Problems:**
+- API quota exhaustion (YouTube allows limited requests/day)
+- Slow response times (external API latency)
+- Cost (some APIs charge per request)
+- Unnecessary load on external services
+
+### Pattern: In-Memory TTL Cache
+
+```go
+// internal/cache/cache.go
+package cache
+
+import (
+    "sync"
+    "time"
+)
+
+type Cache struct {
+    mu         sync.RWMutex
+    items      map[string]*cacheItem
+    maxEntries int
+    ttl        time.Duration
+}
+
+type cacheItem struct {
+    value      interface{}
+    expiration time.Time
+}
+
+func NewCache(maxEntries int, ttl time.Duration) *Cache {
+    c := &Cache{
+        items:      make(map[string]*cacheItem),
+        maxEntries: maxEntries,
+        ttl:        ttl,
+    }
+    
+    // Start cleanup goroutine
+    go c.cleanupExpired()
+    
+    return c
+}
+
+// Get retrieves value from cache
+func (c *Cache) Get(key string) (interface{}, bool) {
+    c.mu.RLock()
+    defer c.mu.RUnlock()
+    
+    item, found := c.items[key]
+    if !found {
+        return nil, false
+    }
+    
+    // Check expiration
+    if time.Now().After(item.expiration) {
+        return nil, false
+    }
+    
+    return item.value, true
+}
+
+// Set stores value in cache
+func (c *Cache) Set(key string, value interface{}) {
+    c.mu.Lock()
+    defer c.mu.Unlock()
+    
+    // Evict old entries if cache is full
+    if len(c.items) >= c.maxEntries {
+        c.evictOldest()
+    }
+    
+    c.items[key] = &cacheItem{
+        value:      value,
+        expiration: time.Now().Add(c.ttl),
+    }
+}
+
+// cleanupExpired removes expired entries periodically
+func (c *Cache) cleanupExpired() {
+    ticker := time.NewTicker(time.Minute)
+    defer ticker.Stop()
+    
+    for range ticker.C {
+        c.mu.Lock()
+        now := time.Now()
+        for k, v := range c.items {
+            if now.After(v.expiration) {
+                delete(c.items, k)
+            }
+        }
+        c.mu.Unlock()
+    }
+}
+
+// evictOldest removes the oldest entry (FIFO)
+func (c *Cache) evictOldest() {
+    var oldestKey string
+    var oldestTime time.Time
+    
+    for k, v := range c.items {
+        if oldestTime.IsZero() || v.expiration.Before(oldestTime) {
+            oldestKey = k
+            oldestTime = v.expiration
+        }
+    }
+    
+    if oldestKey != "" {
+        delete(c.items, oldestKey)
+    }
+}
+```
+
+### Cache Key Generation
+
+```go
+// GenerateKey creates consistent cache keys
+func GenerateKey(prefix string, parts ...interface{}) string {
+    key := prefix
+    for _, part := range parts {
+        key += fmt.Sprintf(":%v", part)
+    }
+    return key
+}
+
+// Usage:
+cacheKey := cache.GenerateKey("search", query, maxResults)
+// Result: "search:golang:10"
+```
+
+### Integration in Use Case
+
+```go
+func (s *SearchVideos) Execute(ctx context.Context, query string, maxResults int64) ([]Video, error) {
+    // Generate cache key
+    cacheKey := cache.GenerateKey("search", query, maxResults)
+    
+    // Try cache first
+    if s.cache != nil {
+        if cached, found := s.cache.Get(cacheKey); found {
+            if videos, ok := cached.([]entities.Video); ok {
+                return videos, nil // Cache hit!
+            }
+        }
+    }
+    
+    // Cache miss - fetch from API
+    videos, err := s.ytClient.Search(query, maxResults)
+    if err != nil {
+        return nil, err
+    }
+    
+    // Store in cache
+    if s.cache != nil {
+        s.cache.Set(cacheKey, videos)
+    }
+    
+    return videos, nil
+}
+```
+
+### Cache Statistics
+
+```go
+// GetStats returns cache metrics
+func (c *Cache) GetStats() map[string]interface{} {
+    c.mu.RLock()
+    defer c.mu.RUnlock()
+    
+    return map[string]interface{}{
+        "total_entries": len(c.items),
+        "max_entries":   c.maxEntries,
+        "ttl_seconds":   c.ttl.Seconds(),
+    }
+}
+```
+
+### Benefits
+
+1. **Reduced API Costs**: Fewer external API calls
+2. **Lower Latency**: In-memory access is microseconds vs API milliseconds
+3. **Quota Protection**: Stay within API rate limits
+4. **Resilience**: Cache can serve requests if API is temporarily down
+5. **Thread-Safe**: RWMutex allows concurrent reads
+
+### Cache Design Decisions
+
+**TTL Selection:**
+- Too short: Cache doesn't help much
+- Too long: Stale data
+- **Zentube: 5 minutes** - Good balance for search results
+
+**Eviction Policy:**
+- **FIFO** (First-In-First-Out): Simple, predictable
+- LRU (Least Recently Used): Better hit rate but more complex
+- LFU (Least Frequently Used): Best hit rate, most complex
+
+**Size Limits:**
+- **1000 entries** in zentube
+- Each video ~1KB → ~1MB total memory
+- Prevents unbounded memory growth
+
+### Production Gotchas
+
+- **Memory limits**: Monitor cache size in production
+- **Cache invalidation**: "There are only two hard things in Computer Science: cache invalidation and naming things"
+- **Thundering herd**: Many requests for same uncached item can overwhelm API
+- **Serialization**: In-memory cache is lost on restart
+- **Distributed systems**: This cache is per-instance, not shared
+
+### Alternative Approaches
+
+**For distributed systems, consider:**
+- Redis: Shared cache across instances
+- Memcached: High-performance distributed cache
+- HTTP caching headers: Let browsers/CDNs cache
+
+**For zentube (single instance):**
+- In-memory cache is perfect
+- No network overhead
+- Simple implementation
+- Fast access times
+
+---
+
+### 12. Environment-Specific Configuration
+
+### Implementation
+**Files:**
+- `internal/config/config.go` - Environment-aware config loading
+- `configs/config.development.yaml` - Dev config
+- `configs/config.staging.yaml` - Staging config
+- `configs/config.production.yaml` - Production config
+
+### Why Environment-Specific Config?
+
+Single config:
+```yaml
+# config.yaml
+app:
+  port: 8080
+database:
+  path: "./zentube.db"
+```
+
+**Problems:**
+- Production uses local database path
+- Same settings for dev and prod
+- Hard to test different configurations
+- Secrets in version control
+
+### Pattern: Environment-Based Config Loading
+
+```go
+// internal/config/config.go
+package config
+
+type Environment string
+
+const (
+    Development Environment = "development"
+    Staging     Environment = "staging"
+    Production  Environment = "production"
+)
+
+// GetEnvironment reads APP_ENV or defaults to development
+func GetEnvironment() Environment {
+    env := os.Getenv("APP_ENV")
+    switch env {
+    case "production", "prod":
+        return Production
+    case "staging", "stage":
+        return Staging
+    default:
+        return Development
+    }
+}
+
+// LoadConfig loads environment-specific configuration
+// Priority: config.<env>.yaml → config.yaml
+func LoadConfig(baseFile string) (*Config, error) {
+    env := GetEnvironment()
+    
+    // Try environment-specific config first
+    envFile := fmt.Sprintf("config.%s.yaml", env)
+    data, err := os.ReadFile(envFile)
+    if err != nil {
+        // Fall back to base config
+        data, err = os.ReadFile(baseFile)
+        if err != nil {
+            return nil, err
+        }
+    }
+    
+    var config Config
+    yaml.Unmarshal(data, &config)
+    config.App.Environment = env
+    
+    return &config, nil
+}
+```
+
+### Environment-Specific Configs
+
+**Development** (`config.development.yaml`):
+```yaml
+app:
+  name: "zentube"
+  port: 8080
+
+youtube:
+  max_results: 10  # Lower to save quota
+
+database:
+  path: "./zentube_dev.db"  # Local SQLite
+```
+
+**Staging** (`config.staging.yaml`):
+```yaml
+app:
+  name: "zentube"
+  port: 8080
+
+youtube:
+  max_results: 15
+
+database:
+  path: "./zentube_staging.db"
+```
+
+**Production** (`config.production.yaml`):
+```yaml
+app:
+  name: "zentube"
+  port: 8080
+
+youtube:
+  max_results: 25  # Higher for better UX
+
+database:
+  path: "/var/lib/zentube/zentube.db"  # System directory
+```
+
+### Environment Variables
+
+Support `.env.<environment>` files:
+
+```go
+func LoadEnv() error {
+    env := GetEnvironment()
+    
+    // Try environment-specific .env first
+    envFile := fmt.Sprintf(".env.%s", env)
+    if err := godotenv.Load(envFile); err == nil {
+        return nil
+    }
+    
+    // Fall back to .env
+    return godotenv.Load()
+}
+```
+
+**Files:**
+- `.env` - Default/development
+- `.env.staging` - Staging secrets
+- `.env.production` - Production secrets (often system env vars)
+
+### Integration in main.go
+
+```go
+func run() error {
+    // Detect environment
+    env := config.GetEnvironment()
+    
+    // Setup logging based on environment
+    logger := middleware.NewLogger(string(env))
+    
+    // Load environment-specific config
+    cfg, err := config.LoadConfig("configs/config.yaml")
+    if err != nil {
+        return err
+    }
+    
+    logger.Info("loaded configuration",
+        slog.String("environment", string(cfg.App.Environment)),
+        slog.String("database", cfg.Database.Path),
+    )
+    
+    // Set Gin mode based on environment
+    if cfg.IsProduction() {
+        gin.SetMode(gin.ReleaseMode)
+    } else if cfg.IsDevelopment() {
+        gin.SetMode(gin.DebugMode)
+    }
+    
+    // ... rest of setup
+}
+```
+
+### Config Helper Methods
+
+```go
+type Config struct {
+    App App
+    // ...
+}
+
+func (c *Config) IsDevelopment() bool {
+    return c.App.Environment == Development
+}
+
+func (c *Config) IsProduction() bool {
+    return c.App.Environment == Production
+}
+
+func (c *Config) IsStaging() bool {
+    return c.App.Environment == Staging
+}
+```
+
+### Running in Different Environments
+
+```bash
+# Development (default)
+go run ./cmd/zentube
+
+# Staging
+APP_ENV=staging go run ./cmd/zentube
+
+# Production
+APP_ENV=production ./zentube
+```
+
+### Benefits
+
+1. **Environment Isolation**: Different settings per environment
+2. **Security**: Production secrets separate from dev
+3. **Flexibility**: Easy to test production configs
+4. **Clarity**: Explicit environment configuration
+5. **Default Safety**: Defaults to development
+
+### Configuration Best Practices
+
+**12-Factor App Compliance:**
+1. **Config in environment**: Use env vars for secrets
+2. **Strict separation**: Dev, staging, prod configs
+3. **Never commit secrets**: `.env` in `.gitignore`
+4. **Provide examples**: Include `.env.example`
+
+**Security:**
+- Production secrets in system env vars (not files)
+- Different API keys per environment
+- Restrict file permissions on config files
+- Rotate secrets regularly
+
+**Organization:**
+```
+configs/
+├── config.yaml              # Fallback/base config
+├── config.development.yaml  # Dev settings
+├── config.staging.yaml      # Staging settings
+└── config.production.yaml   # Prod settings
+
+.env                    # Development secrets (not committed)
+.env.example           # Template for developers
+.env.staging           # Staging secrets (not committed)
+```
+
+### Production Gotchas
+
+- **Missing config files**: Always provide fallback to base config
+- **Hardcoded values**: Use env vars for anything that changes between environments
+- **Logging verbosity**: Debug logs in dev, structured JSON in prod
+- **Database paths**: Ensure production paths have proper permissions
+- **Secret rotation**: Update all environment-specific .env files
+
+---
+
+## Summary of Medium Priority Patterns
+
+The medium priority patterns provide essential production capabilities:
+
+1. **Custom Error Types**: Consistent error handling with proper HTTP status codes
+2. **Input Validation**: Security and data quality through centralized validation
+3. **API Response Caching**: Performance optimization and quota protection
+4. **Environment-Specific Configuration**: Proper separation of dev/staging/prod settings
+
+### Key Takeaways
+
+**Error Handling:**
+- Type-safe errors with context
+- Automatic HTTP status mapping
+- Consistent error responses
+
+**Validation:**
+- Centralized validation logic
+- Security through sanitization
+- Clear error messages
+
+**Caching:**
+- In-memory TTL cache for API responses
+- Thread-safe with RWMutex
+- Automatic expiration and cleanup
+
+**Configuration:**
+- Environment-based config loading
+- Separate configs per environment
+- 12-factor app compliance
+
+**All implemented with pure Go** - no external infrastructure required.
+
 **Next Steps:**
-- Add Prometheus metrics (if infrastructure available)
-- Implement circuit breakers for external services
-- Add database migrations
-- Enhance with distributed tracing (OpenTelemetry)
+- Add integration tests with real dependencies
+- Implement distributed caching (Redis) for multi-instance deployments
+- Add configuration hot-reload capability
+- Enhance with feature flags for gradual rollouts
+

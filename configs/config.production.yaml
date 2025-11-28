@@ -1,0 +1,11 @@
+# Production environment configuration
+app:
+  name: "zentube"
+  port: 8080
+
+youtube:
+  api_key: "" # Injected from YOUTUBE_API_KEY env var
+  max_results: 25
+
+database:
+  path: "/var/lib/zentube/zentube.db"

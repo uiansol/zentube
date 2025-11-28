@@ -32,28 +32,32 @@ func main() {
 }
 
 func run() error {
-	// Determine environment
-	env := os.Getenv("APP_ENV")
-	if env == "" {
-		env = "development"
-	}
-
-	// Initialize structured logger
-	logger := middleware.NewLogger(env)
+	// Determine environment and initialize structured logger
+	env := config.GetEnvironment()
+	logger := middleware.NewLogger(string(env))
 	slog.SetDefault(logger) // Set as default logger for the application
 
-	logger.Info("starting zentube", slog.String("env", env))
+	logger.Info("starting zentube",
+		slog.String("env", string(env)),
+		slog.String("version", "1.0.0"),
+	)
 
-	// Load environment variables
+	// Load environment variables (supports .env.<environment>)
 	if err := config.LoadEnv(); err != nil {
 		return fmt.Errorf("failed to load environment: %w", err)
 	}
 
-	// Load configuration
+	// Load configuration (supports config.<environment>.yaml)
 	cfg, err := config.LoadConfig("configs/config.yaml")
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
+
+	logger.Info("loaded configuration",
+		slog.String("environment", string(cfg.App.Environment)),
+		slog.Int("port", cfg.App.Port),
+		slog.String("database", cfg.Database.Path),
+	)
 
 	// Inject environment variables into config
 	if err := config.InjectEnvVariables(cfg); err != nil {
@@ -88,13 +92,25 @@ func run() error {
 		return fmt.Errorf("failed to initialize database: %w", err)
 	}
 
+	logger.Info("database initialized",
+		slog.String("path", cfg.Database.Path),
+	)
+
 	// Initialize use cases
 	searchVideos := usecases.NewSearchVideos(ytClient, dbRepo)
 	ytHandler := handlers.NewYouTubeHandler(searchVideos, cfg.YouTube.MaxResults)
 	healthHandler := handlers.NewHealthHandler(dbRepo.DB(), logger)
 
 	// Setup Gin router (disable default middleware, we'll add our own)
-	gin.SetMode(gin.ReleaseMode)
+	// Set Gin mode based on environment
+	if cfg.IsProduction() {
+		gin.SetMode(gin.ReleaseMode)
+	} else if cfg.IsDevelopment() {
+		gin.SetMode(gin.DebugMode)
+	} else {
+		gin.SetMode(gin.TestMode)
+	}
+
 	r := gin.New()
 
 	// Apply custom middleware in order

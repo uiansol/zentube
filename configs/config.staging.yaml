@@ -1,0 +1,11 @@
+# Staging environment configuration
+app:
+  name: "zentube"
+  port: 8080
+
+youtube:
+  api_key: "" # Injected from .env.staging
+  max_results: 15
+
+database:
+  path: "./zentube_staging.db"

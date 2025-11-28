@@ -119,3 +119,74 @@ func TestSearchVideos_Execute_EmptyQuery(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 	mockRepo.AssertExpectations(t)
 }
+
+func TestSearchVideos_Execute_CacheHit(t *testing.T) {
+	// Arrange
+	mockClient := new(MockYouTubeClient)
+	mockRepo := new(MockSearchHistoryRepository)
+	expectedVideos := []entities.Video{
+		{
+			ID:    "cached123",
+			Title: "Cached Video",
+		},
+	}
+
+	// First call should hit the API
+	mockClient.On("Search", "golang", int64(10)).Return(expectedVideos, nil).Once()
+	mockRepo.On("Save", mock.Anything, mock.Anything).Return(nil)
+
+	uc := NewSearchVideos(mockClient, mockRepo)
+	ctx := context.Background()
+
+	// Act - First call (cache miss)
+	videos1, err1 := uc.Execute(ctx, "golang", 10)
+
+	// Assert first call
+	assert.NoError(t, err1)
+	assert.Len(t, videos1, 1)
+	assert.Equal(t, "cached123", videos1[0].ID)
+
+	// Wait for async save
+	time.Sleep(100 * time.Millisecond)
+
+	// Act - Second call with same parameters (cache hit)
+	videos2, err2 := uc.Execute(ctx, "golang", 10)
+
+	// Assert second call
+	assert.NoError(t, err2)
+	assert.Len(t, videos2, 1)
+	assert.Equal(t, "cached123", videos2[0].ID)
+
+	// Client should only be called once (first call was cached)
+	mockClient.AssertExpectations(t)
+	mockClient.AssertNumberOfCalls(t, "Search", 1)
+}
+
+func TestSearchVideos_Execute_CacheMissDifferentParams(t *testing.T) {
+	// Arrange
+	mockClient := new(MockYouTubeClient)
+	mockRepo := new(MockSearchHistoryRepository)
+	videos1 := []entities.Video{{ID: "vid1", Title: "Video 1"}}
+	videos2 := []entities.Video{{ID: "vid2", Title: "Video 2"}}
+
+	// Different queries should result in cache misses
+	mockClient.On("Search", "golang", int64(10)).Return(videos1, nil).Once()
+	mockClient.On("Search", "python", int64(10)).Return(videos2, nil).Once()
+	mockRepo.On("Save", mock.Anything, mock.Anything).Return(nil)
+
+	uc := NewSearchVideos(mockClient, mockRepo)
+	ctx := context.Background()
+
+	// Act
+	result1, err1 := uc.Execute(ctx, "golang", 10)
+	result2, err2 := uc.Execute(ctx, "python", 10)
+
+	// Assert
+	assert.NoError(t, err1)
+	assert.NoError(t, err2)
+	assert.Equal(t, "vid1", result1[0].ID)
+	assert.Equal(t, "vid2", result2[0].ID)
+
+	// Both calls should hit the API (different cache keys)
+	mockClient.AssertNumberOfCalls(t, "Search", 2)
+}

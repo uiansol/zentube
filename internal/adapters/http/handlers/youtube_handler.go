@@ -1,11 +1,11 @@
 package handlers
 
 import (
-	"net/http"
-
 	"github.com/gin-gonic/gin"
 	"github.com/uiansol/zentube/internal/adapters/http/middleware"
+	appErrors "github.com/uiansol/zentube/internal/errors"
 	"github.com/uiansol/zentube/internal/usecases"
+	"github.com/uiansol/zentube/internal/validation"
 	"github.com/uiansol/zentube/web/templates/components"
 	"github.com/uiansol/zentube/web/templates/pages"
 )
@@ -21,35 +21,38 @@ func NewYouTubeHandler(searchUC *usecases.SearchVideos, maxResults int64) *YouTu
 
 func (h *YouTubeHandler) Home(c *gin.Context) {
 	if err := pages.HomePage("", nil).Render(c.Request.Context(), c.Writer); err != nil {
-		respondError(c, http.StatusInternalServerError, "Failed to render page")
+		respondError(c, appErrors.NewInternalError("Failed to render page", err), "Failed to render page")
 		return
 	}
 }
 
 func (h *YouTubeHandler) Search(c *gin.Context) {
 	query := c.PostForm("q")
-	if query == "" {
-		if err := components.SearchResults(nil).Render(c.Request.Context(), c.Writer); err != nil {
-			respondError(c, http.StatusInternalServerError, "Failed to render search results")
-		}
+
+	// Validate and sanitize input
+	input, err := validation.ValidateSearchQuery(query, h.maxResults)
+	if err != nil {
+		// Validation errors are AppErrors with proper status codes
+		respondError(c, err, "Invalid search query")
 		return
 	}
 
-	videos, err := h.searchUC.Execute(c.Request.Context(), query, h.maxResults)
+	// Execute search with validated input
+	videos, err := h.searchUC.Execute(c.Request.Context(), input.Query, input.MaxResults)
 	if err != nil {
-		respondError(c, http.StatusInternalServerError, "Failed to search videos")
+		respondError(c, appErrors.NewInternalError("Failed to search videos", err), "Failed to search videos")
 		return
 	}
 
 	// Check if it's an HTMX request - return only results fragment
 	if middleware.IsHTMXRequest(c) {
 		if err := components.SearchResults(videos).Render(c.Request.Context(), c.Writer); err != nil {
-			respondError(c, http.StatusInternalServerError, "Failed to render search results")
+			respondError(c, appErrors.NewInternalError("Failed to render search results", err), "Failed to render search results")
 		}
 	} else {
 		// Regular request - return full page
-		if err := pages.HomePage(query, videos).Render(c.Request.Context(), c.Writer); err != nil {
-			respondError(c, http.StatusInternalServerError, "Failed to render page")
+		if err := pages.HomePage(input.Query, videos).Render(c.Request.Context(), c.Writer); err != nil {
+			respondError(c, appErrors.NewInternalError("Failed to render page", err), "Failed to render page")
 		}
 	}
 }

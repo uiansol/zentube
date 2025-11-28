@@ -2,15 +2,17 @@
 
 A minimalist YouTube search interface built with Go, HTMX, and Templ. Designed to help you find videos without getting lost in the endless rabbit hole of recommendations.
 
+**Also serves as a comprehensive reference implementation** for production-ready Go applications, showcasing enterprise-grade patterns and best practices.
+
 ## 💡 Motivation
 
 YouTube's recommendation algorithm is designed to maximize engagement, which often means losing hours to suggested videos you never intended to watch. This project was born from a real frustration: wanting to quickly search for specific content without getting distracted by the endless stream of recommended videos.
 
 ZenTube provides a clean, focused interface - just search, find what you need, and move on. No distractions, no wasted time.
 
-Additionally, this project serves as **reference scaffolding** for developers learning the Go + HTMX + Templ stack, demonstrating clean architecture patterns and modern web development practices.
+**For Developers**: This project demonstrates **state-of-the-art Go practices** including hexagonal architecture, structured logging, rate limiting, caching, and production-ready error handling - all with pure Go, no external infrastructure required.
 
-> **Note**: This is a work-in-progress. Future additions will include database integration, Docker setup, and additional features.
+📚 **[Read the Full Documentation →](./docs/README.md)**
 
 <div align="center">
    <img src="zentube_1.png" width="400" alt="Zentube main page">
@@ -18,14 +20,32 @@ Additionally, this project serves as **reference scaffolding** for developers le
 
 ## ✨ Features
 
+### User Features
 - 🔍 Clean, distraction-free YouTube search interface
 - 🚫 No recommendations, no algorithmic rabbit holes
 - ⚡ HTMX-powered SPA-like experience without JavaScript frameworks
 - 🎨 Server-side rendering with type-safe Templ templates
+- 💾 Search history tracking with SQLite
+
+### Developer Features (Production Patterns)
 - 🏗️ **Clean Architecture** (Hexagonal/Ports & Adapters pattern)
-- 🧪 Comprehensive test coverage with mocks
-- 🔥 Hot reload development workflow with Air
-- 🚀 Production-ready error handling and graceful shutdown
+- 📊 **Structured Logging** with slog (JSON in prod, text in dev)
+- ✅ **Health Checks** (liveness/readiness probes for K8s)
+- 🛡️ **Security Headers** (XSS, clickjacking protection)
+- ⚡ **Rate Limiting** (per-IP token bucket)
+- 🔄 **API Caching** (in-memory TTL cache)
+- 🔧 **Environment Configs** (dev/staging/production)
+- 📝 **Input Validation** & custom error types
+- 🧪 **Comprehensive Tests** with mocks
+- 🔥 **Hot Reload** development with Air
+- 🚀 **Production-Ready** with graceful shutdown
+
+## 📚 Documentation
+
+- **[Complete Documentation Index](./docs/README.md)** - Start here for full overview
+- **[Production Patterns Guide](./docs/PRODUCTION_PATTERNS.md)** - 12 enterprise patterns explained
+- **[Database Patterns](./docs/DATABASE_PATTERNS.md)** - SQLite optimization for production
+- **[Environment Configuration](./docs/ENVIRONMENT_CONFIG.md)** - Multi-environment setup
 
 ## 🏛️ Architecture Highlights
 
@@ -37,6 +57,7 @@ Additionally, this project serves as **reference scaffolding** for developers le
 │  (HTTP Handlers, YouTube API Client)            │
 │            /adapters/http                       │
 │            /adapters/youtube                    │
+│            /adapters/database                   │
 └────────────────┬────────────────────────────────┘
                  │
 ┌────────────────▼────────────────────────────────┐
